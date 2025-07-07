@@ -1,19 +1,28 @@
-import { HfInference } from "@huggingface/inference"
+import { pipeline, env } from "@xenova/transformers"
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import path from "path"
 
-const hf = new HfInference(process.env.HUGGINGFACE_API_KEY!)
+// Configuration pour utiliser les modèles locaux
+env.allowLocalModels = false
+env.allowRemoteModels = true
+env.cacheDir = path.join(process.cwd(), ".cache")
 
-// Configuration pour GPT-Neo
+// Cache global pour le modèle
+let modelCache: any = null
+
+// Configuration pour GPT-Neo local
 const MODEL_CONFIG = {
-  model: "EleutherAI/gpt-neo-2.7B", // Modèle GPT-Neo gratuit
-  parameters: {
+  model: "Xenova/gpt-neo-125M", // Version plus légère pour commencer
+  task: "text-generation",
+  options: {
     max_new_tokens: 512,
     temperature: 0.7,
     top_p: 0.95,
     repetition_penalty: 1.1,
-    return_full_text: false,
+    do_sample: true,
+    pad_token_id: 50256, // Token de padding pour GPT-Neo
   },
 }
 
@@ -37,10 +46,38 @@ Réponds de manière professionnelle, bienveillante et informative.
 
 IMPORTANT: Termine toujours tes réponses par un rappel de consulter un professionnel de santé si nécessaire.`
 
-async function callGPTNeoAPI(messages: any[]) {
+async function initializeModel() {
+  if (modelCache) {
+    return modelCache
+  }
+
   try {
+    console.log("Initialisation du modèle GPT-Neo local...")
+
+    // Créer le pipeline de génération de texte
+    modelCache = await pipeline(MODEL_CONFIG.task, MODEL_CONFIG.model, {
+      quantized: true, // Utiliser la version quantifiée pour économiser la mémoire
+      progress_callback: (progress: any) => {
+        if (progress.status === "downloading") {
+          console.log(`Téléchargement: ${progress.name} - ${Math.round(progress.progress)}%`)
+        }
+      },
+    })
+
+    console.log("Modèle GPT-Neo initialisé avec succès")
+    return modelCache
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation du modèle:", error)
+    throw error
+  }
+}
+
+async function generateWithLocalGPTNeo(messages: any[]) {
+  try {
+    const model = await initializeModel()
+
     // Préparer le contexte de conversation
-    const conversationHistory = messages.slice(-8) // Limiter pour éviter de dépasser la limite de tokens
+    const conversationHistory = messages.slice(-6) // Limiter pour éviter de dépasser la limite de tokens
 
     let prompt = SYSTEM_PROMPT + "\n\nConversation:\n"
 
@@ -51,21 +88,36 @@ async function callGPTNeoAPI(messages: any[]) {
 
     prompt += "DocIA:"
 
-    const response = await hf.textGeneration({
-      model: MODEL_CONFIG.model,
-      inputs: prompt,
-      parameters: MODEL_CONFIG.parameters,
-    })
+    // Générer la réponse
+    const result = await model(prompt, MODEL_CONFIG.options)
 
-    let generatedText = response.generated_text || ""
+    let generatedText = ""
+    if (Array.isArray(result) && result.length > 0) {
+      generatedText = result[0].generated_text || ""
+    } else if (result.generated_text) {
+      generatedText = result.generated_text
+    }
 
-    // Nettoyer la réponse
-    generatedText = generatedText.trim()
+    // Nettoyer la réponse - enlever le prompt original
+    if (generatedText.includes("DocIA:")) {
+      const parts = generatedText.split("DocIA:")
+      generatedText = parts[parts.length - 1].trim()
+    }
+
+    // Limiter la longueur de la réponse
+    if (generatedText.length > 1000) {
+      generatedText = generatedText.substring(0, 1000) + "..."
+    }
 
     // S'assurer que la réponse n'est pas vide
-    if (!generatedText) {
+    if (!generatedText || generatedText.length < 10) {
       generatedText =
         "Je suis désolé, je n'ai pas pu générer une réponse appropriée. Veuillez reformuler votre question ou consulter directement un professionnel de santé."
+    }
+
+    // Ajouter un rappel médical si pas déjà présent
+    if (!generatedText.toLowerCase().includes("consulter") && !generatedText.toLowerCase().includes("médecin")) {
+      generatedText += "\n\nN'oubliez pas de consulter un professionnel de santé pour un avis médical personnalisé."
     }
 
     return {
@@ -74,26 +126,17 @@ async function callGPTNeoAPI(messages: any[]) {
       metadata: {
         model: MODEL_CONFIG.model,
         tokensUsed: prompt.length + generatedText.length,
-        confidence: 80,
+        confidence: 75,
+        local: true,
       },
     }
   } catch (error: any) {
-    console.error("Erreur GPT-Neo API:", error)
+    console.error("Erreur GPT-Neo local:", error)
 
-    // Gestion spécifique des erreurs de quota
-    if (error.message?.includes("quota") || error.message?.includes("429")) {
-      return {
-        success: false,
-        error: "Quota API dépassé. Veuillez patienter quelques minutes avant de réessayer.",
-        retryAfter: 60,
-      }
-    }
-
-    // Autres erreurs
     return {
       success: false,
-      error: error.message || "Erreur lors de la génération de la réponse",
-      retryAfter: 10,
+      error: error.message || "Erreur lors de la génération de la réponse avec le modèle local",
+      retryAfter: 5,
     }
   }
 }
@@ -132,8 +175,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { message: "Messages requis" } }, { status: 400 })
     }
 
-    // Appeler l'API GPT-Neo
-    const result = await callGPTNeoAPI(messages)
+    // Générer la réponse avec GPT-Neo local
+    const result = await generateWithLocalGPTNeo(messages)
 
     if (!result.success) {
       return NextResponse.json({ error: { message: result.error } }, { status: result.retryAfter ? 429 : 500 })
