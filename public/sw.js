@@ -4,8 +4,10 @@ const urlsToCache = [
   "/auth",
   "/chat",
   "/images/logo.png",
-  "/images/hero-bg.png",
-  "/images/chat-inspiration.png",
+  "/images/medicaments.png",
+  "/images/precision.png",
+  "/images/resultatmed.png",
+  "/images/conseil.png",
   "/manifest.json",
   "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
 ]
