@@ -89,6 +89,8 @@ export default function ChatPage() {
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null)
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -141,6 +143,29 @@ export default function ChatPage() {
   useEffect(() => {
     checkUser()
     loadConversations()
+
+    // Charger les voix pour la synthèse vocale
+    const loadAndSetVoices = () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith("fr"))
+        setAvailableVoices(voices)
+        const storedVoiceURI = localStorage.getItem("selectedVoiceURI")
+        if (storedVoiceURI && voices.some(v => v.voiceURI === storedVoiceURI)) {
+          setSelectedVoiceURI(storedVoiceURI)
+        } else if (voices.length > 0) {
+          // Sélectionner la première voix française par défaut si aucune n'est stockée ou si la stockée n'est plus valide
+          // setSelectedVoiceURI(voices[0].voiceURI) // Optionnel: auto-sélectionner
+        }
+      }
+    }
+
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = loadAndSetVoices
+      } else {
+        loadAndSetVoices()
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -939,6 +964,34 @@ export default function ChatPage() {
                 )}
               </div>
             </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="voiceSelect" className="text-black dark:text-gray-200">Voix de l'IA</Label>
+              <select
+                id="voiceSelect"
+                value={selectedVoiceURI}
+                onChange={(e) => {
+                  const uri = e.target.value
+                  setSelectedVoiceURI(uri)
+                  localStorage.setItem("selectedVoiceURI", uri)
+                }}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-black dark:text-gray-200 focus:ring-teal-500 focus:border-teal-500"
+                disabled={availableVoices.length === 0}
+              >
+                <option value="">Voix par défaut du navigateur</option>
+                {availableVoices.map((voice) => (
+                  <option key={voice.voiceURI} value={voice.voiceURI}>
+                    {voice.name} ({voice.lang})
+                  </option>
+                ))}
+              </select>
+              {availableVoices.length === 0 && (
+                <p className="text-xs text-black dark:text-gray-400">Chargement des voix...</p>
+              )}
+            </div>
+
           </div>
         </DialogContent>
       </Dialog>
