@@ -133,18 +133,22 @@ self.addEventListener("fetch", (event) => {
 
   // Pour les autres assets (CSS, JS, Images)
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
+    caches.match(request).then(async (cachedResponse) => { // Rendre la fonction async
       if (cachedResponse) {
         return cachedResponse;
       }
       // Si non trouvé dans le cache, aller au réseau et mettre en cache la réponse
-      return fetch(request).then((networkResponse) => {
+      try {
+        const networkResponse = await fetch(request);
         if (networkResponse && networkResponse.ok) {
-          const cache = caches.open(CACHE_NAME);
-          cache.then(c => c.put(request, networkResponse.clone()));
+          const responseToCache = networkResponse.clone(); // Cloner pour le cache
+          const cache = await caches.open(CACHE_NAME);   // Attendre l'ouverture du cache
+          await cache.put(request, responseToCache);        // Attendre la mise en cache
         }
+        // Retourner la réponse originale. Son corps n'a pas été lu par notre code ici.
+        // Si networkResponse est undefined ou non-ok, il sera retourné tel quel.
         return networkResponse;
-      }).catch(async (error) => {
+      } catch (error) {
         console.log("Service Worker: Erreur de fetch pour asset, essai de fallback si image:", request.url, error);
         // Optionnel: Pour les images, on pourrait retourner une image placeholder
         if (request.destination === 'image') {
