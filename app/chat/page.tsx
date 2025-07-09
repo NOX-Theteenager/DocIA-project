@@ -481,9 +481,12 @@ export default function ChatPage() {
       {/* Sidebar */}
       <div
         className={cn(
-          "bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-r border-teal-200 dark:border-gray-700 transition-all duration-300 flex flex-col shadow-lg z-50",
+          "bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-r border-teal-200 dark:border-gray-700 flex flex-col shadow-lg z-50 transition-all duration-300 ease-in-out",
           "fixed lg:relative inset-y-0 left-0",
-          sidebarOpen ? "w-80 translate-x-0" : "w-0 -translate-x-full lg:translate-x-0 overflow-hidden",
+          sidebarOpen
+            ? "w-80 translate-x-0"
+            : "w-0 -translate-x-full lg:translate-x-0 lg:w-0", // Assurer w-0 sur lg si fermée
+          !sidebarOpen && "overflow-hidden" // Appliquer overflow-hidden seulement si fermée
         )}
       >
         {/* Sidebar Header */}
