@@ -584,7 +584,7 @@ export default function ChatPage() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="truncate font-medium text-sm text-black dark:text-gray-200">{conversation.title}</div>
+                      <div className="truncate whitespace-nowrap overflow-hidden font-medium text-sm text-black dark:text-gray-200">{conversation.title}</div>
                     )}
                     <div className="flex items-center gap-2 mt-1">
                       <div className="text-xs text-black dark:text-gray-400">
