@@ -38,6 +38,8 @@ import {
   Trash2,
   Settings,
   Edit,
+  Share2,
+  Search, // Ajout de l'icône Search
   AlertTriangle,
   CheckCircle,
   Loader2,
@@ -91,6 +93,9 @@ export default function ChatPage() {
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null)
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([])
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>("")
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -424,6 +429,48 @@ export default function ChatPage() {
     router.push("/")
   }
 
+  const startEdit = (conversation: Conversation) => {
+    setEditingConversationId(conversation.id)
+    setEditingTitle(conversation.title)
+  }
+
+  const cancelEdit = () => {
+    setEditingConversationId(null)
+    setEditingTitle("")
+  }
+
+  const handleRenameConversation = async (conversationId: string) => {
+    if (!editingTitle.trim() || editingTitle === conversations.find(c => c.id === conversationId)?.title) {
+      cancelEdit()
+      return
+    }
+
+    const { error } = await supabase
+      .from("conversations")
+      .update({ title: editingTitle.trim(), updated_at: new Date().toISOString() })
+      .eq("id", conversationId)
+
+    if (!error) {
+      loadConversations() // Recharger pour voir le titre mis à jour
+    } else {
+      console.error("Erreur lors du renommage:", error)
+      // Gérer l'erreur (par exemple, afficher un toast)
+    }
+    cancelEdit()
+  }
+
+  const handleShareConversation = (conversationId: string) => {
+    const shareUrl = `${window.location.origin}/chat/${conversationId}/share`
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        alert("Lien de partage copié dans le presse-papiers !") // Remplacer par un toast plus tard
+      })
+      .catch(err => {
+        console.error("Erreur lors de la copie du lien : ", err)
+        alert("Erreur lors de la copie du lien.")
+      })
+  }
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Mobile Overlay */}
@@ -470,10 +517,26 @@ export default function ChatPage() {
           </Button>
         </div>
 
+        {/* Search Input */}
+        <div className="p-4 border-b border-teal-100 dark:border-gray-700">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+            <Input
+              type="text"
+              placeholder="Rechercher conversation..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-10 bg-white/50 dark:bg-gray-800/50 border-teal-200 dark:border-gray-700 focus:border-teal-400 dark:focus:border-teal-500"
+            />
+          </div>
+        </div>
+
         {/* Rest of sidebar content */}
         <ScrollArea className="flex-1 p-2 sm:p-4">
           <div className="space-y-2">
-            {conversations.map((conversation) => (
+            {conversations
+              .filter((conv) => conv.title.toLowerCase().includes(searchTerm.toLowerCase()))
+              .map((conversation) => (
               <div
                 key={conversation.id}
                 className={cn(
@@ -490,7 +553,39 @@ export default function ChatPage() {
                 >
                   <MessageCircle className="h-4 w-4 mr-3 flex-shrink-0 text-teal-600 dark:text-teal-400" />
                   <div className="flex-1 min-w-0">
-                    <div className="truncate font-medium text-sm text-black dark:text-gray-200">{conversation.title}</div>
+                    {editingConversationId === conversation.id ? (
+                      <div className="flex items-center space-x-1">
+                        <Input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameConversation(conversation.id)
+                            if (e.key === "Escape") cancelEdit()
+                          }}
+                          className="h-8 text-sm flex-grow"
+                          autoFocus
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-green-600 hover:bg-green-100"
+                          onClick={() => handleRenameConversation(conversation.id)}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-600 hover:bg-red-100"
+                          onClick={cancelEdit}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="truncate font-medium text-sm text-black dark:text-gray-200">{conversation.title}</div>
+                    )}
                     <div className="flex items-center gap-2 mt-1">
                       <div className="text-xs text-black dark:text-gray-400">
                         {new Date(conversation.updated_at).toLocaleDateString()}
@@ -503,14 +598,44 @@ export default function ChatPage() {
                     </div>
                   </div>
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => deleteConversation(conversation.id, e)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-black dark:text-gray-400 hover:text-red-500"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                {/* Container for Edit and Delete buttons, only shown if not currently editing this item */}
+                {editingConversationId !== conversation.id && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEdit(conversation);
+                      }}
+                      className="h-6 w-6 p-0 text-gray-500 dark:text-gray-400 hover:text-blue-500"
+                      title="Renommer"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShareConversation(conversation.id);
+                      }}
+                      className="h-6 w-6 p-0 text-gray-500 dark:text-gray-400 hover:text-green-500"
+                      title="Partager"
+                    >
+                      <Share2 className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => deleteConversation(conversation.id, e)}
+                      className="h-6 w-6 p-0 text-gray-500 dark:text-gray-400 hover:text-red-500"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

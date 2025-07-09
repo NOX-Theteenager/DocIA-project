@@ -18,73 +18,10 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useState, createContext, useContext, useRef } from "react"
-
-// Theme Context
-type Theme = "light" | "dark"
-interface ThemeContextType {
-  theme: Theme
-  toggleTheme: () => void
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
-
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light")
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as Theme | null
-    if (savedTheme) {
-      setTheme(savedTheme)
-      if (savedTheme === "dark") {
-        document.documentElement.classList.add("dark")
-      }
-    }
-  }, [])
-
-  const toggleTheme = () => {
-    setTheme((prevTheme) => {
-      const newTheme = prevTheme === "light" ? "dark" : "light"
-      localStorage.setItem("theme", newTheme)
-      document.documentElement.classList.toggle("dark", newTheme === "dark")
-      return newTheme
-    })
-  }
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  )
-}
-
-function useTheme() {
-  const context = useContext(ThemeContext)
-  if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider")
-  }
-  return context
-}
-
-// Theme Toggle Component
-function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme()
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={toggleTheme}
-      className="text-white dark:text-gray-200 hover:text-teal-200 dark:hover:text-teal-400 transition-all duration-300"
-    >
-      {theme === "light" ? (
-        <Moon className="h-5 w-5" />
-      ) : (
-        <Sun className="h-5 w-5" />
-      )}
-      <span className="sr-only">Toggle theme</span>
-    </Button>
-  )
-}
+import { useEffect, useState, useRef } from "react" // Removed createContext, useContext as they are now in theme-context
+import { useTheme } from "@/lib/theme-context" // Import useTheme
+import { LanguageToggle } from "@/components/language-toggle" // Import LanguageToggle
+import { ThemeToggle } from "@/components/theme-toggle" // Import THE ThemeToggle
 
 // Parallax Image Component with 3D Effect
 function ParallaxImage({ src, alt, width, height, className }: { src: string; alt: string; width: number; height: number; className?: string }) {
@@ -204,178 +141,179 @@ function TypingEffect({ text, speed = 100 }: { text: string; speed?: number }) {
 
 export default function HomePage() {
   const [isVisible, setIsVisible] = useState(false)
+  const { t } = useTheme() // Get translation function
 
   useEffect(() => {
     setIsVisible(true)
   }, [])
 
   return (
-    <ThemeProvider>
-      <div className="min-h-screen bg-white dark:bg-gray-900 overflow-hidden">
-        {/* Header */}
-        <header className="bg-teal-800 text-white dark:text-gray-200 relative">
-          <div className="absolute inset-0">
-            <div className="absolute top-0 left-1/4 w-64 h-64 bg-teal-600/20 rounded-full blur-3xl animate-float"></div>
-            <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-teal-500/20 rounded-full blur-2xl animate-float-delayed"></div>
-          </div>
+    // Removed local ThemeProvider, global one from app/layout.tsx is used
+    <div className="min-h-screen bg-white dark:bg-gray-900 overflow-hidden">
+      {/* Header */}
+      <header className="bg-teal-800 text-white dark:text-gray-200 relative">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-1/4 w-64 h-64 bg-teal-600/20 rounded-full blur-3xl animate-float"></div>
+          <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-teal-500/20 rounded-full blur-2xl animate-float-delayed"></div>
+        </div>
 
-          <div className="container mx-auto px-4 py-4 relative z-10">
-            <nav className="flex items-center justify-between">
-              <div
-                className={`flex items-center space-x-3 transition-all duration-1000 ${isVisible ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"}`}
-              >
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-white/20 dark:bg-gray-800/20 rounded-full animate-pulse"></div>
-                  <Image
-                    src="/images/logo.png"
-                    alt="DocIA Logo"
-                    width={40}
-                    height={40}
-                    className="rounded-full relative z-10 transition-transform group-hover:scale-110 object-cover aspect-square w-10 h-10 sm:w-12 sm:h-12"
-                  />
-                </div>
-                <span className="text-xl font-bold text-white dark:text-gray-200">DocIA</span>
+        <div className="container mx-auto px-4 py-4 relative z-10">
+          <nav className="flex items-center justify-between">
+            <div
+              className={`flex items-center space-x-3 transition-all duration-1000 ${isVisible ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"}`}
+            >
+              <div className="relative group">
+                <div className="absolute inset-0 bg-white/20 dark:bg-gray-800/20 rounded-full animate-pulse"></div>
+                <Image
+                  src="/images/logo.png"
+                  alt="DocIA Logo"
+                  width={40}
+                  height={40}
+                  className="rounded-full relative z-10 transition-transform group-hover:scale-110 object-cover aspect-square w-10 h-10 sm:w-12 sm:h-12"
+                />
               </div>
-              <div
-                className={`flex items-center space-x-4 md:space-x-8 transition-all duration-1000 delay-300 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-5 opacity-0"}`}
-              >
-                <div className="hidden md:flex items-center space-x-8">
-                  <Link
-                    href="#accueil"
-                    className="text-white dark:text-gray-200 hover:text-teal-200 dark:hover:text-teal-400 transition-all duration-300 hover:scale-105 relative group"
-                  >
-                    Accueil
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-teal-200 dark:bg-teal-400 transition-all duration-300 group-hover:w-full"></span>
-                  </Link>
-                  <Link
-                    href="#about"
-                    className="text-white dark:text-gray-200 hover:text-teal-200 dark:hover:text-teal-400 transition-all duration-300 hover:scale-105 relative group"
-                  >
-                    À propos
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-teal-200 dark:bg-teal-400 transition-all duration-300 group-hover:w-full"></span>
-                  </Link>
-                  <div className="relative group">
-                    <button className="flex items-center space-x-1 text-white dark:text-gray-200 hover:text-teal-200 dark:hover:text-teal-400 transition-all duration-300 hover:scale-105">
-                      <span>Services</span>
-                      <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180" />
-                    </button>
-                    <div className="absolute top-full left-0 mt-2 w-48 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm text-gray-800 dark:text-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-20">
-                      <Link href="#features" className="block px-4 py-3 hover:bg-teal-50 dark:hover:bg-teal-900/50 rounded-t-lg transition-colors">
-                        Fonctionnalités
-                      </Link>
-                      <Link href="#precision" className="block px-4 py-3 hover:bg-teal-50 dark:hover:bg-teal-900/50 transition-colors">
-                        Diagnostic
-                      </Link>
-                      <Link href="#support" className="block px-4 py-3 hover:bg-teal-50 dark:hover:bg-teal-900/50 rounded-b-lg transition-colors">
-                        Support 24/7
-                      </Link>
-                    </div>
+              <span className="text-xl font-bold text-white dark:text-gray-200">DocIA</span>
+            </div>
+            <div
+              className={`flex items-center space-x-2 md:space-x-4 transition-all duration-1000 delay-300 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-5 opacity-0"}`}
+            >
+              <div className="hidden md:flex items-center space-x-6">
+                <Link
+                  href="#accueil"
+                  className="text-white dark:text-gray-200 hover:text-teal-200 dark:hover:text-teal-400 transition-all duration-300 hover:scale-105 relative group"
+                >
+                  {t.navAccueil}
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-teal-200 dark:bg-teal-400 transition-all duration-300 group-hover:w-full"></span>
+                </Link>
+                <Link
+                  href="#about"
+                  className="text-white dark:text-gray-200 hover:text-teal-200 dark:hover:text-teal-400 transition-all duration-300 hover:scale-105 relative group"
+                >
+                  {t.navAPropos}
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-teal-200 dark:bg-teal-400 transition-all duration-300 group-hover:w-full"></span>
+                </Link>
+                <div className="relative group">
+                  <button className="flex items-center space-x-1 text-white dark:text-gray-200 hover:text-teal-200 dark:hover:text-teal-400 transition-all duration-300 hover:scale-105">
+                    <span>{t.navServices}</span>
+                    <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180" />
+                  </button>
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm text-gray-800 dark:text-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-20">
+                    <Link href="#features" className="block px-4 py-3 hover:bg-teal-50 dark:hover:bg-teal-900/50 rounded-t-lg transition-colors">
+                      {t.navFonctionnalites}
+                    </Link>
+                    <Link href="#precision" className="block px-4 py-3 hover:bg-teal-50 dark:hover:bg-teal-900/50 transition-colors">
+                      {t.navDiagnostic}
+                    </Link>
+                    <Link href="#support" className="block px-4 py-3 hover:bg-teal-50 dark:hover:bg-teal-900/50 rounded-b-lg transition-colors">
+                      {t.navSupport}
+                    </Link>
                   </div>
                 </div>
-                <ThemeToggle />
-                <Link
-                  href="/auth"
-                  className={`transition-all duration-1000 delay-500 ${isVisible ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"}`}
-                >
-                  <Button className="bg-teal-500 hover:bg-teal-600 text-white dark:text-white px-6 py-2 rounded-full hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
-                    Se connecter
-                  </Button>
-                </Link>
               </div>
-            </nav>
-          </div>
-        </header>
-
-        {/* Hero Section */}
-        <section id="accueil" className="bg-teal-800 dark:bg-gray-800 text-white dark:text-gray-200 py-20 relative overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl animate-pulse"></div>
-          </div>
-
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div
-                className={`space-y-6 transition-all duration-1000 ${isVisible ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"}`}
+              <LanguageToggle />
+              <ThemeToggle />
+              <Link
+                href="/auth"
+                className={`transition-all duration-1000 delay-500 ${isVisible ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"}`}
               >
-                <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
-                  <TypingEffect text="DOCAI : VOTRE" speed={80} />
-                  <br />
-                  <span className="text-teal-200 dark:text-teal-400 animate-fade-in-up delay-1000">ASSISTANT</span>
-                  <br />
-                  <span className="text-teal-200 dark:text-teal-400 animate-fade-in-up delay-1500">MÉDICAL</span>
-                  <br />
-                  <span className="text-teal-200 dark:text-teal-400 animate-fade-in-up delay-2000">INTELLIGENT</span>
-                </h1>
-                <p
-                  className={`text-lg text-teal-100 dark:text-gray-300 leading-relaxed max-w-md transition-all duration-1000 delay-500 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
-                >
-                  DocIA est votre compagnon santé intelligent qui vous accompagne dans vos questions médicales avec des
-                  réponses fiables et personnalisées, disponible 24h/24 et 7j/7.
-                </p>
-                <div
-                  className={`flex flex-col sm:flex-row gap-4 transition-all duration-1000 delay-700 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
-                >
-                  <Link href="/auth">
-                    <Button
-                      size="lg"
-                      className="bg-teal-500 hover:bg-teal-600 text-white dark:text-white px-8 py-3 rounded-full hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl group"
-                    >
-                      Commencer maintenant
-                      <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </Link>
+                <Button className="bg-teal-500 hover:bg-teal-600 text-white dark:text-white px-6 py-2 rounded-full hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                  {t.navSeConnecter}
+                </Button>
+              </Link>
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section id="accueil" className="bg-teal-800 dark:bg-gray-800 text-white dark:text-gray-200 py-20 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl animate-pulse"></div>
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div
+              className={`space-y-6 transition-all duration-1000 ${isVisible ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"}`}
+            >
+              <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
+                <TypingEffect text={t.heroTitle1} speed={80} />
+                <br />
+                <span className="text-teal-200 dark:text-teal-400 animate-fade-in-up delay-1000">{t.heroTitle2}</span>
+                <br />
+                <span className="text-teal-200 dark:text-teal-400 animate-fade-in-up delay-1500">{t.heroTitle3}</span>
+                <br />
+                <span className="text-teal-200 dark:text-teal-400 animate-fade-in-up delay-2000">{t.heroTitle4}</span>
+              </h1>
+              <p
+                className={`text-lg text-teal-100 dark:text-gray-300 leading-relaxed max-w-md transition-all duration-1000 delay-500 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
+              >
+                {t.heroDescription}
+              </p>
+              <div
+                className={`flex flex-col sm:flex-row gap-4 transition-all duration-1000 delay-700 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
+              >
+                <Link href="/auth">
                   <Button
                     size="lg"
-                    variant="outline"
-                    className="border-white dark:border-gray-200 text-white dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 hover:text-teal-800 dark:hover:text-teal-400 px-8 py-3 rounded-full bg-transparent hover:scale-105 transition-all duration-300"
+                    className="bg-teal-500 hover:bg-teal-600 text-white dark:text-white px-8 py-3 rounded-full hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl group"
                   >
-                    En savoir plus
+                    {t.heroBtnStart}
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Button>
-                </div>
-
-                <div
-                  className={`grid grid-cols-3 gap-4 pt-8 transition-all duration-1000 delay-1000 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
+                </Link>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-white dark:border-gray-200 text-white dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 hover:text-teal-800 dark:hover:text-teal-400 px-8 py-3 rounded-full bg-transparent hover:scale-105 transition-all duration-300"
                 >
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-teal-200 dark:text-teal-400">
-                      <AnimatedCounter end={10000} suffix="+" />
-                    </div>
-                    <div className="text-sm text-teal-300 dark:text-gray-300">Patients</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-teal-200 dark:text-teal-400">
-                      <AnimatedCounter end={95} suffix="%" />
-                    </div>
-                    <div className="text-sm text-teal-300 dark:text-gray-300">Satisfaction</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-teal-200 dark:text-teal-400">
-                      <AnimatedCounter end={24} suffix="/7" />
-                    </div>
-                    <div className="text-sm text-teal-300 dark:text-gray-300">Disponible</div>
-                  </div>
-                </div>
+                  {t.heroBtnLearnMore}
+                </Button>
               </div>
+
               <div
-                className={`relative transition-all duration-1000 delay-300 ${isVisible ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"}`}
+                className={`grid grid-cols-3 gap-4 pt-8 transition-all duration-1000 delay-1000 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
               >
-                <div className="flex items-center justify-center">
-                  <ParallaxImage
-                    src="/images/logo.png"
-                    alt="DocIA Logo"
-                    width={400}
-                    height={400}
-                    className="w-full max-w-[300px] sm:max-w-[400px] lg:max-w-[500px] h-auto rounded-full object-cover shadow-lg"
-                  />
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-teal-200 dark:text-teal-400">
+                    <AnimatedCounter end={10000} suffix="+" />
+                  </div>
+                  <div className="text-sm text-teal-300 dark:text-gray-300">{t.heroStatPatients}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-teal-200 dark:text-teal-400">
+                    <AnimatedCounter end={95} suffix="%" />
+                  </div>
+                  <div className="text-sm text-teal-300 dark:text-gray-300">{t.heroStatSatisfaction}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-teal-200 dark:text-teal-400">
+                    <AnimatedCounter end={24} suffix="/7" />
+                  </div>
+                  <div className="text-sm text-teal-300 dark:text-gray-300">{t.heroStatAvailability}</div>
                 </div>
               </div>
             </div>
+            <div
+              className={`relative transition-all duration-1000 delay-300 ${isVisible ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"}`}
+            >
+              <div className="flex items-center justify-center">
+                <ParallaxImage
+                  src="/images/logo.png"
+                  alt="DocIA Logo"
+                  width={400}
+                  height={400}
+                  className="w-full max-w-[300px] sm:max-w-[400px] lg:max-w-[500px] h-auto rounded-full object-cover shadow-lg"
+                />
+              </div>
+            </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Features Section */}
+      {/* Features Section */}
         <section id="features" className="bg-pink-50 dark:bg-gray-800 py-20 relative">
           <div className="container mx-auto px-4">
             <div className="text-center mb-16">
