@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocIA - Hors Connexion</title>
+  <style>
+    body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; text-align: center; background-color: #f0f9ff; color: #333; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; }
+    .container { max-width: 600px; padding: 30px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    img { max-width: 80px; margin-bottom: 20px; }
+    h1 { font-size: 24px; color: #0f766e; margin-bottom: 10px; }
+    p { font-size: 16px; line-height: 1.6; }
+    a { color: #0f766e; text-decoration: none; font-weight: 500; }
+    a:hover { text-decoration: underline; }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <img src="/images/logo.png" alt="DocIA Logo">
+    <h1>Vous êtes hors connexion</h1>
+    <p>Il semble que vous n'ayez pas de connexion Internet pour le moment. Certaines fonctionnalités de DocIA peuvent ne pas être disponibles.</p>
+    <p>Veuillez vérifier votre connexion et <a href="#" onclick="window.location.reload()">réessayer</a>.</p>
+    <p><a href="/">Retour à l'accueil (si mis en cache)</a></p>
+  </div>
+</body>
+</html>

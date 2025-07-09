@@ -132,9 +132,35 @@ export function VoiceInput({ onTranscript, disabled = false, className }: VoiceI
 export function TextToSpeech({ text, className }: TextToSpeechProps) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isSupported, setIsSupported] = useState(false)
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string | null>(null)
 
   useEffect(() => {
-    setIsSupported(typeof window !== "undefined" && "speechSynthesis" in window)
+    const supported = typeof window !== "undefined" && "speechSynthesis" in window
+    setIsSupported(supported)
+    if (supported) {
+      const storedVoiceURI = localStorage.getItem("selectedVoiceURI")
+      if (storedVoiceURI) {
+        setSelectedVoiceURI(storedVoiceURI)
+      }
+
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices()
+        if (voices.length > 0 && storedVoiceURI) {
+           // Vérifier si la voix stockée est toujours valide
+           const voiceExists = voices.some(v => v.voiceURI === storedVoiceURI)
+           if (!voiceExists) {
+             localStorage.removeItem("selectedVoiceURI")
+             setSelectedVoiceURI(null)
+           }
+        }
+      }
+      // Les voix peuvent ne pas être chargées immédiatement
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = loadVoices
+      } else {
+        loadVoices()
+      }
+    }
   }, [])
 
   const speak = () => {
@@ -154,13 +180,39 @@ export function TextToSpeech({ text, className }: TextToSpeechProps) {
       .trim()
 
     const utterance = new SpeechSynthesisUtterance(cleanText)
-    utterance.lang = "fr-FR"
+    utterance.lang = "fr-FR" // On garde fr-FR comme langue principale pour le filtrage initial des voix
     utterance.rate = 0.9
     utterance.pitch = 1
 
+    const voices = window.speechSynthesis.getVoices()
+    const currentSelectedVoiceURI = localStorage.getItem("selectedVoiceURI") // Lire la valeur la plus récente
+
+    if (currentSelectedVoiceURI) {
+      const voice = voices.find((v) => v.voiceURI === currentSelectedVoiceURI)
+      if (voice) {
+        utterance.voice = voice
+        utterance.lang = voice.lang // Utiliser la langue de la voix sélectionnée
+      } else {
+        // La voix stockée n'existe plus, supprimer la préférence
+        localStorage.removeItem("selectedVoiceURI")
+      }
+    } else {
+       // Si aucune voix n'est sélectionnée ou si la voix stockée n'est plus valide,
+       // essayer de trouver une voix française par défaut de haute qualité.
+       const frenchVoice = voices.find(v => v.lang === "fr-FR" && v.localService) || voices.find(v => v.lang === "fr-FR");
+       if (frenchVoice) {
+         utterance.voice = frenchVoice;
+       }
+       // Sinon, la voix par défaut du navigateur pour fr-FR sera utilisée
+    }
+
+
     utterance.onstart = () => setIsSpeaking(true)
     utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = () => setIsSpeaking(false)
+    utterance.onerror = (event) => {
+      console.error("SpeechSynthesis Error:", event)
+      setIsSpeaking(false)
+    }
 
     window.speechSynthesis.speak(utterance)
   }

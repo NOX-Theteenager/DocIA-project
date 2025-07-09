@@ -7,21 +7,43 @@ type Theme = "light" | "dark" | "system"
 type Language = "fr" | "en"
 
 interface Translations {
-  // Navigation
+  // Navigation (Chat & General)
   newConversation: string
   patient: string
   online: string
   secured: string
+  navAccueil: string
+  navAPropos: string
+  navServices: string
+  navFonctionnalites: string
+  navDiagnostic: string
+  navSupport: string
+  navSeConnecter: string
 
-  // Welcome screen
+  // Welcome screen (Chat)
   welcomeTitle: string
   welcomeDescription: string
   inputPlaceholder: string
   continuePlaceholder: string
   popularSuggestions: string
+
+
+  // Homepage Hero
+  heroTitle1: string
+  heroTitle2: string
+  heroTitle3: string
+  heroTitle4: string
+  heroDescription: string
+  heroBtnStart: string
+  heroBtnLearnMore: string
+  heroStatPatients: string
+  heroStatSatisfaction: string
+  heroStatAvailability: string
+
+  // General
   copyright: string
 
-  // Health suggestions
+  // Health suggestions (Chat)
   cardiology: string
   cardiovascularPrevention: string
   neurology: string
@@ -58,22 +80,43 @@ interface Translations {
 
 const translations: Record<Language, Translations> = {
   fr: {
-    // Navigation
+    // Navigation (Chat & General)
     newConversation: "Nouvelle conversation",
     patient: "Patient",
     online: "En ligne",
     secured: "Sécurisé",
+    navAccueil: "Accueil",
+    navAPropos: "À propos",
+    navServices: "Services",
+    navFonctionnalites: "Fonctionnalités",
+    navDiagnostic: "Diagnostic",
+    navSupport: "Support 24/7",
+    navSeConnecter: "Se connecter",
 
-    // Welcome screen
+    // Welcome screen (Chat)
     welcomeTitle: "Comment puis-je vous aider aujourd'hui ?",
     welcomeDescription:
       "Posez-moi vos questions de santé, partagez vos documents médicaux ou décrivez vos symptômes. Je peux analyser vos examens, photos et vous fournir des informations personnalisées.",
     inputPlaceholder: "Décrivez vos symptômes, posez une question ou envoyez des documents...",
     continuePlaceholder: "Continuez votre conversation...",
     popularSuggestions: "Suggestions populaires",
+
+    // Homepage Hero
+    heroTitle1: "DOCAI : VOTRE",
+    heroTitle2: "ASSISTANT",
+    heroTitle3: "MÉDICAL",
+    heroTitle4: "INTELLIGENT",
+    heroDescription: "DocIA est votre compagnon santé intelligent qui vous accompagne dans vos questions médicales avec des réponses fiables et personnalisées, disponible 24h/24 et 7j/7.",
+    heroBtnStart: "Commencer maintenant",
+    heroBtnLearnMore: "En savoir plus",
+    heroStatPatients: "Patients",
+    heroStatSatisfaction: "Satisfaction",
+    heroStatAvailability: "Disponible",
+
+    // General
     copyright: "© 2025 DocIA - Douala General Hospital. Tous droits réservés.",
 
-    // Health suggestions
+    // Health suggestions (Chat)
     cardiology: "Cardiologie",
     cardiovascularPrevention: "Comment prévenir les maladies cardiovasculaires ?",
     neurology: "Neurologie",
@@ -108,22 +151,43 @@ const translations: Record<Language, Translations> = {
     confidence: "confiance",
   },
   en: {
-    // Navigation
+    // Navigation (Chat & General)
     newConversation: "New conversation",
     patient: "Patient",
     online: "Online",
     secured: "Secured",
+    navAccueil: "Home",
+    navAPropos: "About",
+    navServices: "Services",
+    navFonctionnalites: "Features",
+    navDiagnostic: "Diagnosis",
+    navSupport: "Support 24/7",
+    navSeConnecter: "Sign In",
 
-    // Welcome screen
+    // Welcome screen (Chat)
     welcomeTitle: "How can I help you today?",
     welcomeDescription:
       "Ask me your health questions, share your medical documents or describe your symptoms. I can analyze your exams, photos and provide you with personalized information.",
     inputPlaceholder: "Describe your symptoms, ask a question or send documents...",
     continuePlaceholder: "Continue your conversation...",
     popularSuggestions: "Popular suggestions",
+
+    // Homepage Hero
+    heroTitle1: "DOCAI: YOUR",
+    heroTitle2: "INTELLIGENT",
+    heroTitle3: "MEDICAL",
+    heroTitle4: "ASSISTANT",
+    heroDescription: "DocIA is your intelligent health companion that supports you with your medical questions with reliable and personalized answers, available 24/7.",
+    heroBtnStart: "Get started now",
+    heroBtnLearnMore: "Learn more",
+    heroStatPatients: "Patients",
+    heroStatSatisfaction: "Satisfaction",
+    heroStatAvailability: "Available",
+
+    // General
     copyright: "© 2025 DocIA - Douala General Hospital. All rights reserved.",
 
-    // Health suggestions
+    // Health suggestions (Chat)
     cardiology: "Cardiology",
     cardiovascularPrevention: "How to prevent cardiovascular diseases?",
     neurology: "Neurology",
@@ -170,31 +234,38 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("system")
-  const [language, setLanguage] = useState<Language>("fr")
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "system" // Default for SSR
+    return (localStorage.getItem("theme") as Theme) || "system"
+  })
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window === "undefined") return "fr" // Default for SSR
+    const storedLang = localStorage.getItem("language") as Language
+    if (storedLang && ["fr", "en"].includes(storedLang)) return storedLang
+    const browserLang = navigator.language.toLowerCase()
+    return browserLang.startsWith("en") ? "en" : "fr"
+  })
 
-  // Detect system language on mount
-  useEffect(() => {
-    const systemLanguage = navigator.language.toLowerCase()
-    if (systemLanguage.startsWith("en")) {
-      setLanguage("en")
-    } else {
-      setLanguage("fr") // Default to French
-    }
-  }, [])
-
-  // Apply theme to document
   useEffect(() => {
     const root = window.document.documentElement
     root.classList.remove("light", "dark")
 
+    let effectiveTheme = theme
     if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-      root.classList.add(systemTheme)
-    } else {
-      root.classList.add(theme)
+      effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
     }
+    root.classList.add(effectiveTheme)
   }, [theme])
+
+  const setTheme = (newTheme: Theme) => {
+    localStorage.setItem("theme", newTheme)
+    setThemeState(newTheme)
+  }
+
+  const setLanguage = (newLanguage: Language) => {
+    localStorage.setItem("language", newLanguage)
+    setLanguageState(newLanguage)
+  }
 
   const value = {
     theme,

@@ -65,7 +65,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - images (public images)
      * - api (API routes)
+     * - manifest.json (PWA manifest)
+     * - sw.js (Service Worker)
      */
-    "/((?!_next/static|_next/image|favicon.ico|images|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images|api|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }
