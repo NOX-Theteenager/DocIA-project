@@ -114,11 +114,8 @@ export const config = {
      * La regex actuelle attrape tout ce qui n'est pas un asset statique connu.
      * Modification pour une approche plus explicite : ne faire correspondre que les chemins d'application.
      */
-    // Ancien matcher: "/((?!_next/static|_next/image|favicon\\.ico|images/.*|api/.*|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-    '/chat/:path*',
-    '/auth/:path*',
-    '/admin/:path*',
-    // Ajoutez '/' si la page d'accueil nécessite une logique de middleware.
-    // Pour l'instant, on la laisse être servie statiquement sans middleware si possible.
+    // Ancien matcher (opt-in): ['/chat/:path*', '/auth/:path*', '/admin/:path*'],
+    // Retour à une regex d'exclusion, mais plus ciblée pour les fichiers racines.
+    '/((?!_next/static/|_next/image/|api/|images/|favicon\\.ico$|manifest\\.json$|sw\\.js$|offline\\.html$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'
   ],
 }
