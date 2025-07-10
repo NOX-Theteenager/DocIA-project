@@ -112,14 +112,13 @@ export const config = {
      * Les autres chemins (comme la page d'accueil "/") seront également concernés par le middleware
      * à moins d'être explicitement exclus si nécessaire (par exemple, si la page d'accueil est publique).
      * La regex actuelle attrape tout ce qui n'est pas un asset statique connu.
+     * Modification pour une approche plus explicite : ne faire correspondre que les chemins d'application.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|images/.*|api/.*|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-    // Pour s'assurer que le middleware s'exécute pour /admin, /chat, /auth :
-    // La regex ci-dessus les inclut déjà car ils ne correspondent à aucun des motifs d'exclusion.
-    // Si on voulait être plus restrictif, on pourrait lister les chemins :
-    // "/admin/:path*",
-    // "/chat/:path*",
-    // "/auth/:path*",
-    // "/" (si la page d'accueil doit aussi passer par le middleware pour une raison ou une autre)
+    // Ancien matcher: "/((?!_next/static|_next/image|favicon\\.ico|images/.*|api/.*|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    '/chat/:path*',
+    '/auth/:path*',
+    '/admin/:path*',
+    // Ajoutez '/' si la page d'accueil nécessite une logique de middleware.
+    // Pour l'instant, on la laisse être servie statiquement sans middleware si possible.
   ],
 }

@@ -1,7 +1,7 @@
 "use client"
 
-import AdminDashboard from "@/components/admin-dashboard";
-import { useAuth } from "@/components/auth-provider"; // Importer useAuth
+import { AdminDashboard } from "@/components/admin-dashboard"; // Changement: import nommé
+import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 

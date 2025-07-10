@@ -139,30 +139,40 @@ self.addEventListener("fetch", (event) => {
       }
       // Si non trouvé dans le cache, aller au réseau et mettre en cache la réponse
       try {
-        const networkResponse = await fetch(request);
+        const networkResponse = await fetch(request); // Réponse originale du réseau
+
         if (networkResponse && networkResponse.ok) {
-          const responseToCache = networkResponse.clone(); // Cloner pour le cache
-          const cache = await caches.open(CACHE_NAME);   // Attendre l'ouverture du cache
-          await cache.put(request, responseToCache);        // Attendre la mise en cache
+          // Cloner la réponse pour la mettre en cache
+          const responseToCache = networkResponse.clone();
+          // Cloner à nouveau la réponse pour la retourner au client
+          // (l'original networkResponse ne sera plus utilisé directement après ces clones)
+          const responseToReturn = networkResponse.clone();
+
+          caches.open(CACHE_NAME).then(async (cache) => { // Utiliser async ici aussi pour await cache.put
+            await cache.put(request, responseToCache);
+          });
+
+          return responseToReturn; // Retourner le second clone
+        } else {
+          // Si la réponse n'est pas .ok (ex: 404), on la retourne telle quelle sans la mettre en cache.
+          // Pas besoin de cloner ici car elle n'est pas mise en cache.
+          return networkResponse;
         }
-        // Retourner la réponse originale. Son corps n'a pas été lu par notre code ici.
-        // Si networkResponse est undefined ou non-ok, il sera retourné tel quel.
-        return networkResponse;
       } catch (error) {
-        console.log("Service Worker: Erreur de fetch pour asset, essai de fallback si image:", request.url, error);
-        // Optionnel: Pour les images, on pourrait retourner une image placeholder
-        if (request.destination === 'image') {
-           // const placeholder = await caches.match('/images/placeholder.png');
-           // if (placeholder) return placeholder;
-        }
+        console.log("Service Worker: Erreur de fetch pour asset:", request.url, error);
         // Pour les autres, si OFFLINE_URL est pertinent et que la requête est de type 'document'
         // (déjà géré par le mode 'navigate' mais au cas où)
-        // if (request.destination === 'document') {
-        //   return caches.match(OFFLINE_URL);
+        if (request.destination === 'document') {
+           const offlinePage = await caches.match(OFFLINE_URL); // Assurez-vous que cette fonction est async
+           if (offlinePage) return offlinePage;
+        }
+        // Optionnel: Pour les images, on pourrait retourner une image placeholder
+        // if (request.destination === 'image') {
+        //    const placeholder = await caches.match('/images/placeholder.png');
+        //    if (placeholder) return placeholder;
         // }
-        // Sinon, laisser l'erreur se propager
         throw error;
-      });
+      }
     })
   );
 });
