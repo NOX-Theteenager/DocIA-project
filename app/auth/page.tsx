@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/components/auth-provider" // Importer useAuth
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -50,39 +51,52 @@ export default function AuthPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("signin")
   const [connectionStatus, setConnectionStatus] = useState<"checking" | "connected" | "disconnected">("checking")
-  const [initialLoading, setInitialLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true) // Peut être remplacé par loading de useAuth
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
   const [resetEmail, setResetEmail] = useState("")
   const router = useRouter()
+  const { user, userProfile, loading: authLoading, signOut } = useAuth() // Utiliser le contexte d'authentification
 
-  // Vérifier si l'utilisateur est déjà connecté
+  // Gérer la redirection si l'utilisateur est déjà connecté ou après connexion/inscription
   useEffect(() => {
-    checkExistingSession()
-  }, [])
-
-  const checkExistingSession = async () => {
-    try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
-
-      console.log("Auth page - Checking session:", !!session)
-
-      if (session && !error) {
-        console.log("Auth page - User already logged in, redirecting to chat")
-        router.push("/chat")
-        return
+    // Attendre que le chargement initial de la session et du profil soit terminé
+    if (!authLoading) {
+      setInitialLoading(false) // Marquer la fin du chargement de la page d'authentification
+      if (user && userProfile) {
+        // Utilisateur connecté et profil chargé
+        if (userProfile.role === 'admin') {
+          console.log("Auth page - Admin user detected, redirecting to /admin/dashboard")
+          router.push("/admin/dashboard")
+        } else {
+          console.log("Auth page - Non-admin user detected, redirecting to /chat")
+          router.push("/chat")
+        }
+      } else if (user && !userProfile) {
+        // Utilisateur connecté mais profil pas encore chargé (ou erreur de chargement du profil)
+        // Cela pourrait indiquer un délai ou un problème avec fetchUserProfile dans AuthProvider
+        console.warn("Auth page - User is logged in, but profile not yet available. Waiting or check AuthProvider.")
+        // On pourrait ajouter un timeout ici pour rediriger vers /chat par défaut si le profil ne se charge pas.
+        // Pour l'instant, on attend que AuthProvider le charge. L'état `authLoading` devrait couvrir cela.
       }
-
-      setConnectionStatus("connected")
-    } catch (error) {
-      console.error("Auth page - Session check error:", error)
-      setConnectionStatus("disconnected")
-    } finally {
-      setInitialLoading(false)
+      // Si !user, l'utilisateur n'est pas connecté, donc on reste sur la page d'auth.
     }
-  }
+  }, [user, userProfile, authLoading, router])
+
+
+  // Gérer le statut de connexion réseau (facultatif, mais déjà présent)
+  useEffect(() => {
+    const updateOnlineStatus = () => {
+      setConnectionStatus(navigator.onLine ? "connected" : "disconnected");
+    };
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus(); // Vérifier au montage
+    return () => {
+      window.removeEventListener('online', updateOnlineStatus);
+      window.removeEventListener('offline', updateOnlineStatus);
+    };
+  }, []);
+
 
   const clearMessages = () => {
     setError(null)
@@ -170,11 +184,12 @@ export default function AuthPage() {
       }
 
       if (data.user && data.session) {
-        setSuccess("Connexion réussie ! Redirection en cours...")
-        setTimeout(() => {
-          router.push("/chat")
-          router.refresh()
-        }, 1000)
+        setSuccess("Connexion réussie ! Chargement de votre session...")
+        // La redirection est maintenant gérée par le useEffect qui écoute useAuth()
+        // setTimeout(() => {
+        //   router.push("/chat") // Ancienne redirection
+        //   router.refresh()
+        // }, 1000)
       }
     } catch (error: any) {
       console.error("Erreur lors de la connexion:", error)
@@ -241,14 +256,20 @@ export default function AuthPage() {
       }
 
       if (data.user) {
-        if (data.user.email_confirmed_at) {
-          setSuccess("Compte créé avec succès ! Redirection en cours...")
-          setTimeout(() => {
-            router.push("/chat")
-          }, 1000)
+        // Si l'utilisateur est créé et son email est confirmé (ou auto-confirmé par Supabase),
+        // AuthProvider va le détecter et le useEffect gérera la redirection.
+        // Si l'email n'est pas confirmé, l'utilisateur ne pourra pas se connecter de toute façon.
+        if (data.user.identities && data.user.identities.length > 0) { // Vérifie si c'est un utilisateur réel
+           setSuccess("Compte créé ! Si une confirmation est requise, vérifiez votre email. Sinon, la connexion est en cours...")
+           // Pas de redirection directe ici, laisser AuthProvider et le useEffect s'en charger.
+           // Si l'email doit être confirmé, l'utilisateur ne pourra pas se connecter tant que ce n'est pas fait.
+           // Le AuthProvider ne chargera pas de userProfile tant que la session n'est pas active.
+           if (!data.user.email_confirmed_at) {
+             setActiveTab("signin") // Revenir à signin pour qu'il puisse se connecter après confirmation
+           }
         } else {
-          setSuccess("Compte créé ! Vérifiez votre email pour confirmer votre inscription.")
-          setActiveTab("signin")
+           // Cas étrange, utilisateur créé mais sans identité (ne devrait pas arriver avec email/pass)
+           setError("Erreur lors de la création du compte.")
         }
       }
     } catch (error: any) {

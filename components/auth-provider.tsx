@@ -6,15 +6,24 @@ import { createContext, useContext, useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 
-interface AuthContextType {
-  user: User | null
-  loading: boolean
+// Définition du type pour le profil utilisateur
+export interface UserProfile {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  role: string | null; // Ajout du rôle
+  preferred_language?: string | null;
+  // Ajoutez d'autres champs de user_profiles que vous souhaitez rendre accessibles
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-})
+interface AuthContextType {
+  user: User | null; // Utilisateur Supabase Auth
+  userProfile: UserProfile | null; // Profil de la table user_profiles
+  loading: boolean; // Chargement initial de la session et du profil
+  signOut: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
@@ -26,25 +35,68 @@ export const useAuth = () => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const fetchUserProfile = async (userId: string) => {
+    if (!userId) {
+      setUserProfile(null)
+      return
+    }
+    try {
+      const { data, error } = await supabase
+        .from("user_profiles") // Assurez-vous que le nom de la table est correct
+        .select("*") // Récupère toutes les colonnes, y compris 'role'
+        .eq("id", userId)
+        .single()
+
+      if (error) {
+        console.error("Erreur lors de la récupération du profil utilisateur:", error.message)
+        setUserProfile(null)
+        return
+      }
+      setUserProfile(data as UserProfile)
+    } catch (e) {
+      console.error("Exception lors de la récupération du profil:", e)
+      setUserProfile(null)
+    }
+  }
+
   useEffect(() => {
-    // Obtenir la session initiale
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    const processSession = async (sessionUser: User | null) => {
+      setUser(sessionUser)
+      if (sessionUser) {
+        await fetchUserProfile(sessionUser.id)
+      } else {
+        setUserProfile(null)
+      }
       setLoading(false)
+    }
+
+    // Obtenir la session initiale
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      await processSession(session?.user ?? null)
     })
 
     // Écouter les changements d'authentification
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      await processSession(session?.user ?? null)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription?.unsubscribe()
+    }
   }, [])
 
-  return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setUserProfile(null);
+    // Redirection gérée par le middleware ou les pages elles-mêmes
+  };
+
+
+  return <AuthContext.Provider value={{ user, userProfile, loading, signOut }}>{children}</AuthContext.Provider>
 }
