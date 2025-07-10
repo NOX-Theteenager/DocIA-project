@@ -72,12 +72,16 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         try {
           // Essayer d'abord le réseau
-          const networkResponse = await fetch(request);
-          // Mettre en cache la réponse réseau pour les futures requêtes hors ligne
+          const networkResponse = await fetch(request); // Réponse originale
           if (networkResponse && networkResponse.ok) {
+            const responseToCache = networkResponse.clone(); // Clone 1 pour le cache
+            const responseToReturn = networkResponse.clone(); // Clone 2 pour le client
+
             const cache = await caches.open(CACHE_NAME);
-            cache.put(request, networkResponse.clone());
+            await cache.put(request, responseToCache); // Mettre Clone 1 en cache
+            return responseToReturn; // Retourner Clone 2
           }
+          // Si networkResponse n'est pas ok (ex: 404), retourner l'original sans cloner/cacher
           return networkResponse;
         } catch (error) {
           // Le réseau a échoué, essayer de servir depuis le cache
@@ -121,10 +125,14 @@ self.addEventListener("fetch", (event) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        const networkResponse = await fetch(request);
+        const networkResponse = await fetch(request); // Réponse originale
         if (networkResponse && networkResponse.ok) {
-          cache.put(request, networkResponse.clone());
+          const responseToCache = networkResponse.clone();   // Clone 1 pour le cache
+          const responseToReturn = networkResponse.clone();  // Clone 2 pour le client
+          await cache.put(request, responseToCache);       // Mettre Clone 1 en cache (await ici car on est dans le .then d'open)
+          return responseToReturn;                         // Retourner Clone 2
         }
+        // Si networkResponse n'est pas ok, retourner l'original sans cloner/cacher
         return networkResponse;
       })
     );
